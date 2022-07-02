@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import Persons from "./Persons";
 import PersonForm from "./PersonForm";
 import Filter from "./Filter";
-
+import Notification from "./Notification";
 import phonebookService from "./services/phonebookService";
 
 const App = () => {
@@ -10,6 +10,7 @@ const App = () => {
   const [newName, setNewName] = useState("");
   const [newNumber, setNewNumber] = useState("");
   const [nameFilter, setNameFilter] = useState("");
+  const [message, setMessage] = useState(null);
 
   useEffect(() => {
     phonebookService.getAll().then(persons => setPersons(persons));
@@ -31,18 +32,46 @@ const App = () => {
             number: newPerson.number,
           })
           .then(updatedPerson => {
+            flashNotification({
+              text: `Updated ${updatedPerson.name}`,
+              className: "success",
+              delay: 5000,
+            });
             setPersons(
               persons.map(person =>
                 person.id === updatedPerson.id ? updatedPerson : person
               )
             );
+          })
+          .catch(err => {
+            flashNotification({
+              text: `The person ${existingPerson.name} was already deleted from the server`,
+              className: "error",
+              delay: 5000,
+            });
+            setPersons(persons.filter(person => person.id !== existingPerson.id));
           });
       }
       return;
     }
-    phonebookService
-      .createPerson(newPerson)
-      .then(newPerson => setPersons([...persons, newPerson]));
+    phonebookService.createPerson(newPerson).then(newPerson => {
+      flashNotification({
+        text: `Added ${newPerson.name}`,
+        className: "success",
+        delay: 5000,
+      });
+      setPersons([...persons, newPerson]);
+    });
+  };
+
+  const flashNotification = ({ text, className, delay }) => {
+    setMessage({
+      text: text,
+      className: className,
+    });
+    setTimeout(() => {
+      setMessage(null);
+    }, delay);
   };
 
   const deleteHandler = person => {
@@ -76,6 +105,9 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      {message && (
+        <Notification message={message.text} className={message.className} />
+      )}
       <Filter nameFilter={nameFilter} nameFilterHandler={nameFilterHandler} />
       <h2>add a new</h2>
       <PersonForm
