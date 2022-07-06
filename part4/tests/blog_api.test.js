@@ -5,11 +5,20 @@ const api = supertest(app);
 const Blog = require("../models/blog");
 const helper = require("./blogs_api_test_helper.js");
 
-beforeEach(async () => {
-  await Blog.deleteMany({});
+const generateToken = async user => {
+  const res = await api.post("/api/login").send({
+    username: "test",
+    password: "sekret",
+  });
+  return res.body.token;
+};
 
-  const blogs = helper.initialBlogs.map(blog => new Blog(blog));
-  await Promise.all(blogs.map(blog => blog.save()));
+let token;
+let user;
+
+beforeAll(async () => {
+  user = await helper.createUser();
+  token = await generateToken();
 });
 
 afterAll(() => {
@@ -17,6 +26,15 @@ afterAll(() => {
 });
 
 describe("When there are some blogs in the database", () => {
+  beforeEach(async () => {
+    await Blog.deleteMany({});
+
+    const blogs = helper.initialBlogs.map(
+      blog => new Blog({ ...blog, user: user.id })
+    );
+    await Promise.all(blogs.map(blog => blog.save()));
+  });
+
   test("blogs are successfully returned as json", async () => {
     await api
       .get("/api/blogs")
@@ -40,6 +58,7 @@ describe("Creating a new blog", () => {
     };
     await api
       .post("/api/blogs")
+      .set("Authorization", `bearer ${token}`)
       .send(newBlog)
       .expect(201)
       .expect("Content-Type", /application\/json/);
@@ -50,6 +69,25 @@ describe("Creating a new blog", () => {
     expect(savedBlog.id).toBeDefined();
   });
 
+  test("fails with a 401 if a token is not provided", async () => {
+    const blogsAtStart = await helper.blogsInDb();
+    const newBlog = {
+      title: "test blog create",
+      author: "me",
+      url: "fakeUrl3.com",
+      likes: 10,
+    };
+    await api
+      .post("/api/blogs")
+      .set("Authorization", `bearer invalid`)
+      .send(newBlog)
+      .expect(401)
+      .expect("Content-Type", /application\/json/);
+
+    const blogsAtEnd = await helper.blogsInDb();
+    expect(blogsAtEnd).toHaveLength(blogsAtStart.length);
+  });
+
   test("succeeds if likes is missing and defaults to 0", async () => {
     const newBlog = {
       title: "test blog create",
@@ -57,20 +95,31 @@ describe("Creating a new blog", () => {
       url: "fakeUrl3.com",
     };
 
-    const savedBlog = await (await api.post("/api/blogs").send(newBlog)).body;
+    const savedBlog = await (
+      await api
+        .post("/api/blogs")
+        .set("Authorization", `bearer ${token}`)
+        .send(newBlog)
+    ).body;
 
     expect(savedBlog.id).toBeDefined();
     expect(savedBlog.likes).toBe(0);
   });
 
   test("fails with 400 if title or author fields are missing", async () => {
+    const blogsAtStart = await helper.blogsInDb();
     const newBlog = {
       url: "fakeurl.com",
     };
 
-    await api.post("/api/blogs").send(newBlog).expect(400);
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .set("Authorization", `bearer ${token}`)
+      .expect(400);
+
     const blogsAtEnd = await helper.blogsInDb();
-    expect(blogsAtEnd).toHaveLength(helper.initialBlogs.length);
+    expect(blogsAtEnd).toHaveLength(blogsAtStart.length);
   });
 });
 
@@ -78,8 +127,12 @@ describe("deleting a blog", () => {
   test("succeeds with a 204 if valid id", async () => {
     const blogsAtStart = await helper.blogsInDb();
     const blogToDelete = blogsAtStart[0];
+    console.log(blogToDelete);
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .set("Authorization", `bearer ${token}`)
+      .expect(204);
 
     const blogsAtEnd = await helper.blogsInDb();
     expect(blogsAtEnd).toHaveLength(blogsAtStart.length - 1);
@@ -87,7 +140,8 @@ describe("deleting a blog", () => {
   });
 
   test("fails with 400 if invalid id", async () => {
-    await api.delete("/api/blogs/invalid").expect(400);
+    await api.delete("/api/blogs/invalid").set("Authorization", `bearer ${token}`);
+    expect(400);
   });
 });
 
@@ -100,6 +154,7 @@ describe("Updating a blog", () => {
       author: "me",
       url: "fakeurl.com",
       likes: 10000,
+      user: user.id.toString(),
     };
     await api
       .put(`/api/blogs/${blogToUpdate.id}`)
@@ -109,6 +164,7 @@ describe("Updating a blog", () => {
 
     const updatedBlogs = await helper.blogsInDb();
     const updatedBlog = updatedBlogs[0];
+    updatedBlog.user = updatedBlog.user.toString();
 
     expect(updatedBlog.id).toBe(blogToUpdate.id);
     expect(updatedBlog).toEqual({ id: blogToUpdate.id, ...modifiedBlog });
