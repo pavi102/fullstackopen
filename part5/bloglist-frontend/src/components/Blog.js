@@ -11,7 +11,7 @@ const blogStyle = {
 const Blog = ({ user, blog, likeBlog, deleteBlog }) => {
   const [toggleDetails, setToggleDetails] = useState(false);
   return (
-    <div style={blogStyle}>
+    <div data-cy="blog" style={blogStyle}>
       <div>
         {blog.title} {blog.author}{" "}
         <button onClick={() => setToggleDetails(!toggleDetails)}>View</button>

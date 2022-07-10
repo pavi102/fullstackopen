@@ -37,20 +37,20 @@ blogsRouter.delete("/:id", userExtractor, async (req, res) => {
 });
 
 blogsRouter.put("/:id", async (req, res) => {
-  const { title, author, url, likes } = req.body;
+  const { title, author, url, likes, user } = req.body;
 
   if (!title || !author) {
     return res.status(400).end();
   }
   const updatedBlog = await Blog.findByIdAndUpdate(
     req.params.id,
-    { title, author, url, likes },
+    { title, author, url, likes, user: user.id },
     {
       new: true,
       runValidators: true,
       context: "query",
     }
-  );
+  ).populate("user", { username: 1, name: 1 });
   res.status(200).json(updatedBlog);
 });
 

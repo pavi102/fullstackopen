@@ -21,7 +21,7 @@ const BlogForm = ({ createBlog }) => {
   return (
     <>
       <h1>Create new</h1>
-      <form onSubmit={handleCreate}>
+      <form data-cy="blog-form" onSubmit={handleCreate}>
         <div>
           title:
           <input
@@ -29,6 +29,7 @@ const BlogForm = ({ createBlog }) => {
             value={title}
             name="title"
             placeholder="title"
+            data-cy="title"
             onChange={({ target }) => setTitle(target.value)}
           />
         </div>
@@ -39,6 +40,7 @@ const BlogForm = ({ createBlog }) => {
             value={author}
             name="author"
             placeholder="author"
+            data-cy="author"
             onChange={({ target }) => setAuthor(target.value)}
           />
         </div>
@@ -49,10 +51,11 @@ const BlogForm = ({ createBlog }) => {
             value={url}
             name="url"
             placeholder="url"
+            data-cy="url"
             onChange={({ target }) => setUrl(target.value)}
           />
         </div>
-        <button onClick={handleCreate} type="submit">
+        <button data-cy="create-button" onClick={handleCreate} type="submit">
           create
         </button>
       </form>
