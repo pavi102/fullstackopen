@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@apollo/client";
 import { EDIT_AUTHOR } from "../queries";
 const EditAuthor = ({ authors }) => {
   const [name, setName] = useState("");
   const [born, setBorn] = useState("");
+
+  useEffect(() => {
+    setName(authors[0].name);
+  }, [authors]);
 
   const [editAuthor] = useMutation(EDIT_AUTHOR);
   const handleChangeYear = e => {
